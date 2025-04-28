@@ -1,6 +1,6 @@
  # Bible CLI
 
- A powerful command-line tool and interactive terminal UI for reading the Bible, complete with themes, search, bookmarks, and more.
+ A command-line tool and interactive terminal UI for reading the Bible, complete with themes, search, bookmarks, and more.
 
  ## Features
 
@@ -9,9 +9,8 @@
  - Random verse generator: `-r, --random`
  - Bookmarks with optional notes
  - Theming system (default, dark, light, sepia, black-metal-gorgoroth, etc.)
- - Whole-chapter view option in the Verses panel
- - Easy JSON data downloader for KJV and other sources
- - Configuration stored locally in `config.json`
+- Whole-chapter view option in the Verses panel
+- Configuration stored locally in `config.json`
 
  ## Installation
 
@@ -38,8 +37,6 @@
    List all bookmarks.
  - `bible theme <theme>`  
    Change theme (default, dark, light, sepia, black-metal-gorgoroth).
- - `bible download <source>`  
-   Download full Bible JSON (simple_json, kjv, etc.).
  - `bible demo`  
    Run a non-interactive demo.
 
@@ -69,13 +66,6 @@
  - `bookmarks`: array of `{book,chapter,verse,note}` objects
 
  You can edit `config.json` by hand or via the CLI commands.
-
- ## Data
-
- By default the repo includes a minimal `src/data/bible-kjv.json`. To fetch the full KJV:
- ```bash
- bible download simple_json
- ```
 
  ## Contributing
 

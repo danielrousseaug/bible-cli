@@ -1,0 +1,31 @@
+{
+  "name": "biblecli",
+  "version": "0.1.0",
+  "description": "A riced-out CLI tool for reading the Bible",
+  "main": "cli/index.js",
+  "bin": {
+    "bible": "cli/index.js"
+  },
+  "scripts": {
+    "start": "node cli/index.js",
+    "test": "jest"
+  },
+  "keywords": [
+    "bible",
+    "cli",
+    "terminal",
+    "scripture"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0",
+    "chalk": "^4.1.2",
+    "commander": "^11.0.0",
+    "conf": "^10.2.0"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0"
+  }
+}

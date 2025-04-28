@@ -34,17 +34,6 @@ program
   .version('0.1.0')
   .option('-r, --random', 'Display a random verse');
 
-// Data downloader command
-program
-  .command('download <source>')
-  .description('Download and install Bible JSON data (simple_json, kjv, etc.)')
-  .action((source) => {
-    const path = require('path');
-    const { spawn } = require('child_process');
-    const script = path.join(__dirname, '..', 'utils', 'download-bible.js');
-    const downloader = spawn('node', [script, source], { stdio: 'inherit' });
-    downloader.on('exit', code => process.exit(code));
-  });
 
 program
   .command('read')

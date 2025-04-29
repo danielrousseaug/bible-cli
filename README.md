@@ -10,7 +10,10 @@
  - Bookmarks with optional notes
  - Theming system (default, dark, light, sepia, black-metal-gorgoroth, etc.)
 - Whole-chapter view option in the Verses panel
-- Configuration stored locally in `config.json`
+ - Configuration stored locally in `config.json`
+ - Keyboard-driven bookmark management in TUI (add with `a`, view with `b`, delete with `d`)
+ - Random verse jump in TUI (`r` key)
+ - Quit only via `q` or `Ctrl-C`; `Esc` now only closes the help dialog
 
  ## Installation
 
@@ -44,17 +47,14 @@
 
  Simply run:
  ```bash
- bible read
- ```
- or:
- ```bash
  bible
  ```
 
  - **Tab** to switch panels (Books, Chapters, Verses).
  - **Enter** to select.
  - In the Verses panel, the top entry **Whole chapter** shows the entire chapter.
- - **s** to search, **b** to view bookmarks, **t** to pick theme, **q**/Esc to quit.
+ - **s** to search, **a** to add a bookmark for the current verse, **b** to view bookmarks (`d` to delete), **r** for a random verse, **t** to pick theme.
+ - **h** to toggle help; **Esc** closes help; **q** or **Ctrl-C** quits the app.
 
  ## Configuration
 

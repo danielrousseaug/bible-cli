@@ -1,4 +1,4 @@
- # Bible CLI
+# 📖 Bible CLI
 
  A command-line tool and interactive terminal UI for reading the Bible, complete with themes, search, bookmarks, and more.
  

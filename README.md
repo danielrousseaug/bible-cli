@@ -1,9 +1,10 @@
  # Bible CLI
 
  A command-line tool and interactive terminal UI for reading the Bible, complete with themes, search, bookmarks, and more.
+ 
+![demo](https://github.com/user-attachments/assets/beaff202-2f02-4784-9c9a-b1762a5dda1b)
 
  ## Features
-![demo](https://github.com/user-attachments/assets/beaff202-2f02-4784-9c9a-b1762a5dda1b)
 
  - Interactive terminal UI with book, chapter, and verse navigation
  - Single-shot commands for verse, chapter, search, and random verses

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 const { program } = require('commander');
+const blessed = require('blessed');
 const BibleReader = require('../utils/bible');
-const { config, addBookmark, removeBookmark, getBookmarks } = require('../utils/config');
+const { config, addBookmark, removeBookmark, updateBookmark, moveBookmark, getBookmarks } = require('../utils/config');
 
 const bible = new BibleReader(config.get('translation'));
 // Early handler for random verse flag (e.g., -r or --random)
@@ -112,13 +113,13 @@ program
 
 program
   .command('theme <theme>')
-  .description('Set theme (default, dark, light, sepia, black-metal-gorgoroth)')
+  .description('Set theme (black-metal, nord, gruvbox, dracula, solarized)')
   .action((theme) => {
-    if (['default', 'dark', 'light', 'sepia', 'black-metal-gorgoroth'].includes(theme)) {
+    if (['black-metal', 'nord', 'gruvbox', 'dracula', 'solarized'].includes(theme)) {
       config.set('theme', theme);
       console.log(`Theme set to ${theme}`);
     } else {
-      console.error('Invalid theme');
+      console.error('Invalid theme. Choose from: black-metal, nord, gruvbox, dracula, solarized');
     }
   });
 
@@ -126,6 +127,13 @@ program
 function startInteractiveBible() {
   const books = bible.getBooks();
   ui.setBooks(books);
+
+  // Track currently selected verse for bookmarking
+  let currentSelection = {
+    book: null,
+    chapter: null,
+    verse: null
+  };
   
   // Define event handlers outside to avoid multiple registrations
   // Chapter selection handler: show chapter & prepare verse options (including whole chapter)
@@ -155,11 +163,22 @@ function startInteractiveBible() {
         // 'All' selected: show entire chapter
         ui.displayScripture(selectedBook, selectedChapter, selectedChapter.verses);
         ui.setStatus(`Reading: ${selectedBook.name} ${selectedChapter.chapter}`);
+        currentSelection = {
+          book: selectedBook.name,
+          chapter: selectedChapter.chapter,
+          verse: null // Whole chapter, no specific verse
+        };
       } else {
         // Specific verse selected (index-1)
         const v = selectedChapter.verses[verseIndex - 1];
         ui.contentBox.setContent(`{bold}${selectedBook.name} ${selectedChapter.chapter}:${v.verse}{/bold}\n\n${v.text}`);
+        ui.contentBox.setScrollPerc(0); // Reset scroll to top
         ui.setStatus(`Selected: ${selectedBook.name} ${selectedChapter.chapter}:${v.verse}`);
+        currentSelection = {
+          book: selectedBook.name,
+          chapter: selectedChapter.chapter,
+          verse: v.verse
+        };
       }
       ui.render();
     });
@@ -184,23 +203,231 @@ function startInteractiveBible() {
   ui.screen.key('s', () => {
     ui.showSearchPrompt((query) => {
       const results = bible.search(query);
-      ui.showSearchResults(results);
-      ui.setStatus(`Search results for: "${query}"`);
+      ui.showSearchResults(results, query, (result) => {
+        // Navigate to the selected search result
+        const bookData = bible.getBook(result.book);
+        const book = books.find(b => b.name === result.book);
+        const chapter = bookData.chapters.find(c => c.chapter === result.chapter);
+        const verse = chapter.verses.find(v => v.verse === result.verse);
+
+        // Find the book index and select it in the books list
+        const bookIndex = books.findIndex(b => b.name === result.book);
+        if (bookIndex !== -1) {
+          ui.booksList.select(bookIndex);
+
+          // Update chapters list
+          const chapters = bookData.chapters.map(c => c.chapter);
+          ui.setChapters(chapters);
+
+          // Find and select the chapter
+          const chapterIndex = bookData.chapters.findIndex(c => c.chapter === result.chapter);
+          if (chapterIndex !== -1) {
+            ui.chaptersList.select(chapterIndex);
+
+            // Update verses list with 'Whole chapter' option
+            const verseNumbers = chapter.verses.map(v => v.verse);
+            verseNumbers.unshift('Whole chapter');
+            ui.setVerses(verseNumbers);
+
+            // Find and select the verse (add 1 for 'Whole chapter' offset)
+            const verseIndex = chapter.verses.findIndex(v => v.verse === result.verse);
+            if (verseIndex !== -1) {
+              ui.versesList.select(verseIndex + 1);
+            }
+          }
+
+          // Setup handlers for the selected book/chapter
+          setupChapterHandler(bookData, book);
+          setupVerseHandler(book, chapter);
+        }
+
+        // Display the search result verse
+        if (verse) {
+          ui.contentBox.setContent(`{bold}${result.book} ${result.chapter}:${result.verse}{/bold}\n\n${verse.text}`);
+          ui.contentBox.setScrollPerc(0); // Reset scroll to top
+          ui.setStatus(`Search result: ${result.book} ${result.chapter}:${result.verse}`);
+
+          // Update current selection for bookmarking
+          currentSelection = {
+            book: result.book,
+            chapter: result.chapter,
+            verse: result.verse
+          };
+        }
+
+        // Restore focus to content box
+        ui.contentBox.focus();
+        ui.render();
+      });
     });
   });
   
-  // Bookmark functionality
+  // Bookmark functionality - view and select
   ui.screen.key('b', () => {
     const bookmarks = getBookmarks();
-    ui.showBookmarks(bookmarks);
-    ui.setStatus('Showing bookmarks');
+    ui.showBookmarks(bookmarks, (bookmark) => {
+      // Navigate to the selected bookmark
+      const bookData = bible.getBook(bookmark.book);
+      const book = books.find(b => b.name === bookmark.book);
+      const chapter = bookData.chapters.find(c => c.chapter === bookmark.chapter);
+      const verse = chapter.verses.find(v => v.verse === bookmark.verse);
+
+      // Find the book index and select it in the books list
+      const bookIndex = books.findIndex(b => b.name === bookmark.book);
+      if (bookIndex !== -1) {
+        ui.booksList.select(bookIndex);
+
+        // Update chapters list
+        const chapters = bookData.chapters.map(c => c.chapter);
+        ui.setChapters(chapters);
+
+        // Find and select the chapter
+        const chapterIndex = bookData.chapters.findIndex(c => c.chapter === bookmark.chapter);
+        if (chapterIndex !== -1) {
+          ui.chaptersList.select(chapterIndex);
+
+          // Update verses list with 'Whole chapter' option
+          const verseNumbers = chapter.verses.map(v => v.verse);
+          verseNumbers.unshift('Whole chapter');
+          ui.setVerses(verseNumbers);
+
+          // Find and select the verse (add 1 for 'Whole chapter' offset)
+          const verseIndex = chapter.verses.findIndex(v => v.verse === bookmark.verse);
+          if (verseIndex !== -1) {
+            ui.versesList.select(verseIndex + 1);
+          }
+        }
+
+        // Setup handlers for the selected book/chapter
+        setupChapterHandler(bookData, book);
+        setupVerseHandler(book, chapter);
+      }
+
+      // Display the bookmarked verse
+      if (verse) {
+        ui.contentBox.setContent(`{bold}${bookmark.book} ${bookmark.chapter}:${bookmark.verse}{/bold}\n\n${verse.text}`);
+        ui.contentBox.setScrollPerc(0); // Reset scroll to top
+        ui.setStatus(`Bookmark: ${bookmark.book} ${bookmark.chapter}:${bookmark.verse}`);
+
+        // Update current selection for bookmarking
+        currentSelection = {
+          book: bookmark.book,
+          chapter: bookmark.chapter,
+          verse: bookmark.verse
+        };
+      }
+
+      // Restore focus to content box
+      ui.contentBox.focus();
+      ui.render();
+    }, (updatedBookmarks) => {
+      // Save updated bookmarks to config
+      const { config } = require('../utils/config');
+      config.set('bookmarks', updatedBookmarks);
+    });
   });
-  
+
   // Theme picker within UI
   ui.screen.key('t', () => {
     ui.showThemePicker();
   });
-  
+
+  // Random verse functionality
+  ui.screen.key('r', () => {
+    const randomVerse = bible.getRandomVerse();
+    if (randomVerse) {
+      // Get the full book data to display it properly
+      const bookData = bible.getBook(randomVerse.book);
+      const book = books.find(b => b.name === randomVerse.book);
+      const chapter = bookData.chapters.find(c => c.chapter === randomVerse.chapter);
+      const verse = chapter.verses.find(v => v.verse === randomVerse.verse);
+
+      // Find the book index and select it in the books list
+      const bookIndex = books.findIndex(b => b.name === randomVerse.book);
+      if (bookIndex !== -1) {
+        ui.booksList.select(bookIndex);
+
+        // Update chapters list
+        const chapters = bookData.chapters.map(c => c.chapter);
+        ui.setChapters(chapters);
+
+        // Find and select the chapter
+        const chapterIndex = bookData.chapters.findIndex(c => c.chapter === randomVerse.chapter);
+        if (chapterIndex !== -1) {
+          ui.chaptersList.select(chapterIndex);
+
+          // Update verses list with 'Whole chapter' option
+          const verseNumbers = chapter.verses.map(v => v.verse);
+          verseNumbers.unshift('Whole chapter');
+          ui.setVerses(verseNumbers);
+
+          // Find and select the verse (add 1 for 'Whole chapter' offset)
+          const verseIndex = chapter.verses.findIndex(v => v.verse === randomVerse.verse);
+          if (verseIndex !== -1) {
+            ui.versesList.select(verseIndex + 1);
+          }
+        }
+
+        // Setup handlers for the selected book/chapter
+        setupChapterHandler(bookData, book);
+        setupVerseHandler(book, chapter);
+      }
+
+      // Display the random verse
+      ui.contentBox.setContent(`{bold}${randomVerse.book} ${randomVerse.chapter}:${randomVerse.verse}{/bold}\n\n${randomVerse.text}`);
+      ui.contentBox.setScrollPerc(0); // Reset scroll to top
+      ui.setStatus(`Random verse: ${randomVerse.book} ${randomVerse.chapter}:${randomVerse.verse}`);
+
+      // Update current selection for bookmarking
+      currentSelection = {
+        book: randomVerse.book,
+        chapter: randomVerse.chapter,
+        verse: randomVerse.verse
+      };
+
+      ui.render();
+    } else {
+      ui.setStatus('No random verse found');
+    }
+  });
+
+  // Add bookmark functionality
+  ui.screen.key('a', () => {
+    if (currentSelection.book && currentSelection.chapter && currentSelection.verse) {
+      // Prompt for optional note
+      const notePrompt = blessed.prompt({
+        parent: ui.screen,
+        border: { type: 'line' },
+        height: 'shrink',
+        width: 'half',
+        top: 'center',
+        left: 'center',
+        label: ' Add Bookmark Note (optional) ',
+        tags: true,
+        keys: true,
+        vi: true
+      });
+
+      notePrompt.input('Enter a note for this bookmark (or leave empty):', '', (err, note) => {
+        if (!err) {
+          addBookmark(
+            currentSelection.book,
+            currentSelection.chapter,
+            currentSelection.verse,
+            note || ''
+          );
+          ui.setStatus(`Bookmark added: ${currentSelection.book} ${currentSelection.chapter}:${currentSelection.verse}`);
+        } else {
+          // Cancelled - restore focus
+          ui.contentBox.focus();
+        }
+        ui.render();
+      });
+    } else {
+      ui.setStatus('No verse selected. Please select a verse first.');
+    }
+  });
+
   // Initialize focus
   ui.booksList.focus();
   ui.render();

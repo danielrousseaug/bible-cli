@@ -17,8 +17,10 @@ class BibleUI {
     this.activePanel = null;
     this.initLayout();
     
-    // Handle exit
-    this.screen.key(['escape', 'q', 'C-c'], () => process.exit(0));
+    // Handle exit - only Ctrl+C quits the app
+    this.screen.key('C-c', () => {
+      process.exit(0);
+    });
   }
   
   initLayout() {
@@ -104,22 +106,22 @@ class BibleUI {
       this.booksList.style.label.fg = this.theme.book;
       this.booksList.style.label.bold = false;
       this.booksList.setLabel(' [ ] Books ');
-      
+
       this.chaptersList.style.border.fg = this.theme.border;
       this.chaptersList.style.label.fg = this.theme.chapter;
       this.chaptersList.style.label.bold = false;
       this.chaptersList.setLabel(' [ ] Chapters ');
-      
+
       this.versesList.style.border.fg = this.theme.border;
       this.versesList.style.label.fg = this.theme.verse;
       this.versesList.style.label.bold = false;
       this.versesList.setLabel(' [ ] Verses ');
-      
+
       // Set active panel
       panel.style.border.fg = this.theme.highlight;
       panel.style.label.fg = this.theme.highlight;
       panel.style.label.bold = true;
-      
+
       // Update label with active indicator
       if (panel === this.booksList) {
         this.booksList.setLabel(' [*] Books ');
@@ -128,7 +130,7 @@ class BibleUI {
       } else if (panel === this.versesList) {
         this.versesList.setLabel(' [*] Verses ');
       }
-      
+
       // track the active panel for styling/theme updates
       this.activePanel = panel;
       this.screen.render();
@@ -138,29 +140,33 @@ class BibleUI {
     this.booksList.on('focus', () => setActivePanel(this.booksList));
     this.chaptersList.on('focus', () => setActivePanel(this.chaptersList));
     this.versesList.on('focus', () => setActivePanel(this.versesList));
-    
+
     // Setup tab navigation between panels
     this.booksList.key('tab', () => this.chaptersList.focus());
     this.chaptersList.key('tab', () => this.versesList.focus());
-    this.versesList.key('tab', () => this.booksList.focus());
-    
+    this.versesList.key('tab', () => this.contentBox.focus());
+
     // Setup shift+tab for reverse navigation
-    this.booksList.key('S-tab', () => this.versesList.focus());
+    this.booksList.key('S-tab', () => this.contentBox.focus());
     this.chaptersList.key('S-tab', () => this.booksList.focus());
     this.versesList.key('S-tab', () => this.chaptersList.focus());
     
     // Content box (enable tags for style markup)
     this.contentBox = this.grid.set(0, 5, 12, 7, blessed.box, {
-      label: ' Scripture ',
+      label: ' [ ] Scripture ',
       tags: true,
       scrollable: true,
       alwaysScroll: true,
       keys: true,
       vi: true,
       mouse: true,
+      focusable: true,
       border: { type: 'line' },
       style: {
-        border: { fg: this.theme.border }
+        border: { fg: this.theme.border },
+        focus: {
+          border: { fg: this.theme.highlight }
+        }
       },
       scrollbar: {
         ch: ' ',
@@ -172,7 +178,37 @@ class BibleUI {
         }
       }
     });
-    
+
+    // Add contentBox to focus handlers
+    this.contentBox.on('focus', () => {
+      // Reset all panels to inactive
+      this.booksList.style.border.fg = this.theme.border;
+      this.booksList.style.label.fg = this.theme.book;
+      this.booksList.style.label.bold = false;
+      this.booksList.setLabel(' [ ] Books ');
+
+      this.chaptersList.style.border.fg = this.theme.border;
+      this.chaptersList.style.label.fg = this.theme.chapter;
+      this.chaptersList.style.label.bold = false;
+      this.chaptersList.setLabel(' [ ] Chapters ');
+
+      this.versesList.style.border.fg = this.theme.border;
+      this.versesList.style.label.fg = this.theme.verse;
+      this.versesList.style.label.bold = false;
+      this.versesList.setLabel(' [ ] Verses ');
+
+      // Set contentBox as active
+      this.contentBox.style.border.fg = this.theme.highlight;
+      this.contentBox.setLabel(' [*] Scripture ');
+
+      this.activePanel = this.contentBox;
+      this.screen.render();
+    });
+
+    // Setup tab navigation for contentBox
+    this.contentBox.key('tab', () => this.booksList.focus());
+    this.contentBox.key('S-tab', () => this.versesList.focus());
+
     // Status bar
     this.statusBar = blessed.box({
       parent: this.screen,
@@ -180,11 +216,12 @@ class BibleUI {
       left: 0,
       right: 0,
       height: 1,
-      content: '{center}TAB:Switch panels | ENTER:Select | s:Search | b:Bookmarks | h:Help | q:Quit{/center}',
+      content: '{center}TAB:Switch | r:Random | a:Add Bookmark | b:Bookmarks | s:Search | h:Help | Ctrl+C:Quit{/center}',
       tags: true,
       style: {
-        bg: this.theme.border,
-        fg: this.theme.bg
+        fg: this.theme.fg,
+        bg: this.theme.statusBg,
+        bold: true
       }
     });
     
@@ -199,8 +236,7 @@ class BibleUI {
       tags: true,
       border: { type: 'line' },
       style: {
-        border: { fg: this.theme.border },
-        bg: this.theme.bg,
+        border: { fg: this.theme.highlight },
         fg: this.theme.fg
       },
       hidden: true
@@ -209,6 +245,21 @@ class BibleUI {
     // Help key binding
     this.screen.key('h', () => {
       this.helpBox.hidden = !this.helpBox.hidden;
+      if (!this.helpBox.hidden) {
+        this.helpBox.focus();
+      }
+      this.screen.render();
+    });
+
+    // Help box close handlers
+    this.helpBox.key(['escape', 'q', 'h'], () => {
+      this.helpBox.hidden = true;
+      // Restore focus to active panel or default to books list
+      if (this.activePanel) {
+        this.activePanel.focus();
+      } else {
+        this.booksList.focus();
+      }
       this.screen.render();
     });
   }
@@ -216,22 +267,24 @@ class BibleUI {
   getHelpContent() {
     return `
       {bold}BibleCLI Keyboard Shortcuts{/bold}
-      
+
       {bold}Navigation{/bold}
-      - Arrow keys: Navigate lists
-      - Tab: Switch between lists
+      - Arrow keys: Navigate lists / Scroll scripture
+      - Tab: Switch between panels
+      - Shift+Tab: Switch panels (reverse)
       - Enter: Select item
-      
+
       {bold}Actions{/bold}
-      - s: Search
-      - b: Bookmarks
+      - r: Random verse
+      - s: Search (select to navigate)
+      - b: View bookmarks (select to navigate)
+      - a: Add bookmark
       - t: Change theme
-      - f: Change font size
-      - m: Toggle verse numbers
-      
+
       {bold}Other{/bold}
       - h: Toggle help
-      - q/Esc: Quit
+      - Esc/q: Close menus
+      - Ctrl+C: Quit app
     `;
   }
   
@@ -255,13 +308,14 @@ class BibleUI {
     this.lastDisplay = { type: 'scripture', book, chapter, verses };
     const theme = getTheme();
     let content = `{bold}${book.name} ${chapter.chapter}{/bold}\n\n`;
-    
+
     verses.forEach(verse => {
       const verseNum = chalk.hex(theme.verse)(`${verse.verse} `);
       content += `${verseNum}${verse.text}\n\n`;
     });
-    
+
     this.contentBox.setContent(content);
+    this.contentBox.setScrollPerc(0); // Reset scroll to top
     this.screen.render();
   }
   
@@ -287,52 +341,276 @@ class BibleUI {
     searchPrompt.input('Enter search term:', '', (err, value) => {
       if (!err && value) {
         callback(value);
+      } else {
+        // Cancelled or empty - restore focus
+        if (this.activePanel) {
+          this.activePanel.focus();
+        } else {
+          this.contentBox.focus();
+        }
       }
       this.screen.render();
     });
   }
   
-  showSearchResults(results) {
+  showSearchResults(results, query, onSelect) {
     // remember last search results for redraw on theme change
-    this.lastDisplay = { type: 'search', results };
+    this.lastDisplay = { type: 'search', results, query };
     if (results.length === 0) {
       this.setStatus('No results found');
       return;
     }
-    
-    const theme = getTheme();
-    let content = `{bold}Search Results (${results.length}){/bold}\n\n`;
-    
-    results.forEach(result => {
-      const reference = chalk.hex(theme.book)(`${result.book} ${result.chapter}:${result.verse}`);
-      content += `${reference} - ${result.text}\n\n`;
+
+    // Create a list for search results
+    const searchList = blessed.list({
+      parent: this.screen,
+      label: ` Search Results: "${query}" (${results.length}) `,
+      top: 'center',
+      left: 'center',
+      width: '90%',
+      height: '80%',
+      keys: true,
+      vi: true,
+      mouse: true,
+      border: { type: 'line' },
+      style: {
+        selected: { bg: this.theme.highlight, bold: true },
+        border: { fg: this.theme.highlight },
+        label: { fg: this.theme.highlight, bold: true },
+        item: { fg: this.theme.fg }
+      },
+      scrollbar: {
+        ch: ' ',
+        style: {
+          inverse: true
+        }
+      }
     });
-    
-    this.contentBox.setContent(content);
+
+    // Format search results for display
+    const items = results.map(result => {
+      // Truncate long verses for display
+      const text = result.text.length > 100 ? result.text.substring(0, 100) + '...' : result.text;
+      return `${result.book} ${result.chapter}:${result.verse} - ${text}`;
+    });
+
+    searchList.setItems(items);
+    searchList.focus();
+
+    // Handle selection
+    searchList.on('select', (item, index) => {
+      const result = results[index];
+      searchList.destroy();
+      this.screen.render();
+      if (onSelect) {
+        onSelect(result);
+      }
+    });
+
+    // Handle cancel
+    searchList.key(['escape', 'q'], () => {
+      searchList.destroy();
+      // Restore focus to active panel or default to content box
+      if (this.activePanel) {
+        this.activePanel.focus();
+      } else {
+        this.contentBox.focus();
+      }
+      this.screen.render();
+    });
+
     this.screen.render();
   }
   
-  showBookmarks(bookmarks) {
+  showBookmarks(bookmarks, onSelect, onUpdate) {
     // remember last bookmarks display for redraw on theme change
     this.lastDisplay = { type: 'bookmarks', bookmarks };
     if (bookmarks.length === 0) {
       this.setStatus('No bookmarks found');
       return;
     }
-    
-    const theme = getTheme();
-    let content = `{bold}Bookmarks (${bookmarks.length}){/bold}\n\n`;
-    
-    bookmarks.forEach((bookmark, index) => {
-      const reference = chalk.hex(theme.book)(`${bookmark.book} ${bookmark.chapter}:${bookmark.verse}`);
-      content += `${index + 1}. ${reference}`;
-      if (bookmark.note) {
-        content += ` - ${bookmark.note}`;
+
+    // Create a box container to hold the list and footer
+    const container = blessed.box({
+      parent: this.screen,
+      top: 'center',
+      left: 'center',
+      width: '80%',
+      height: '80%',
+      border: { type: 'line' },
+      style: {
+        border: { fg: this.theme.highlight }
       }
-      content += '\n\n';
     });
-    
-    this.contentBox.setContent(content);
+
+    // Create a list for bookmarks
+    const bookmarksList = blessed.list({
+      parent: container,
+      label: ' Bookmarks ',
+      top: 0,
+      left: 0,
+      width: '100%-2',
+      height: '100%-3',
+      keys: true,
+      vi: true,
+      mouse: true,
+      style: {
+        selected: { bg: this.theme.highlight, bold: true },
+        label: { fg: this.theme.highlight, bold: true },
+        item: { fg: this.theme.fg }
+      },
+      scrollbar: {
+        ch: ' ',
+        style: {
+          inverse: true
+        }
+      }
+    });
+
+    // Add footer with instructions
+    const footer = blessed.box({
+      parent: container,
+      bottom: 0,
+      left: 0,
+      width: '100%-2',
+      height: 1,
+      content: '{center}Enter:Navigate | d:Delete | e:Edit Note | K/J:Move Up/Down | Esc/q:Close{/center}',
+      tags: true,
+      style: {
+        fg: this.theme.verse
+      }
+    });
+
+    // Helper function to refresh the list
+    const refreshList = () => {
+      const items = bookmarks.map((bookmark, index) => {
+        let item = `${index + 1}. ${bookmark.book} ${bookmark.chapter}:${bookmark.verse}`;
+        if (bookmark.note) {
+          item += ` - ${bookmark.note}`;
+        }
+        return item;
+      });
+      const currentIndex = bookmarksList.selected;
+      bookmarksList.setItems(items);
+      if (currentIndex < items.length) {
+        bookmarksList.select(currentIndex);
+      }
+      this.screen.render();
+    };
+
+    // Format bookmarks for display
+    refreshList();
+
+    // Handle cancel - set up BEFORE focusing
+    bookmarksList.key(['escape', 'q'], () => {
+      container.destroy();
+      // Restore focus to active panel or default to content box
+      if (this.activePanel) {
+        this.activePanel.focus();
+      } else {
+        this.contentBox.focus();
+      }
+      this.screen.render();
+    });
+
+    // Handle selection (Enter)
+    bookmarksList.on('select', (item, index) => {
+      const bookmark = bookmarks[index];
+      container.destroy();
+      this.screen.render();
+      if (onSelect) {
+        onSelect(bookmark);
+      }
+    });
+
+    // Handle delete (d)
+    bookmarksList.key('d', () => {
+      const index = bookmarksList.selected;
+      if (index >= 0 && index < bookmarks.length) {
+        bookmarks.splice(index, 1);
+        if (onUpdate) {
+          onUpdate(bookmarks);
+        }
+        if (bookmarks.length === 0) {
+          container.destroy();
+          this.setStatus('All bookmarks deleted');
+          // Restore focus when all bookmarks deleted
+          if (this.activePanel) {
+            this.activePanel.focus();
+          } else {
+            this.contentBox.focus();
+          }
+          this.screen.render();
+        } else {
+          refreshList();
+        }
+      }
+    });
+
+    // Handle edit note (e)
+    bookmarksList.key('e', () => {
+      const index = bookmarksList.selected;
+      if (index >= 0 && index < bookmarks.length) {
+        const bookmark = bookmarks[index];
+        const notePrompt = blessed.prompt({
+          parent: this.screen,
+          border: { type: 'line' },
+          height: 'shrink',
+          width: 'half',
+          top: 'center',
+          left: 'center',
+          label: ' Edit Bookmark Note ',
+          tags: true,
+          keys: true,
+          vi: true
+        });
+
+        notePrompt.input('Edit note:', bookmark.note || '', (err, note) => {
+          if (!err) {
+            bookmark.note = note || '';
+            if (onUpdate) {
+              onUpdate(bookmarks);
+            }
+            refreshList();
+          }
+          bookmarksList.focus();
+          this.screen.render();
+        });
+      }
+    });
+
+    // Handle move up (K - vim style)
+    bookmarksList.key(['K'], () => {
+      const index = bookmarksList.selected;
+      if (index > 0) {
+        const [bookmark] = bookmarks.splice(index, 1);
+        bookmarks.splice(index - 1, 0, bookmark);
+        if (onUpdate) {
+          onUpdate(bookmarks);
+        }
+        refreshList();
+        bookmarksList.select(index - 1);
+        this.screen.render();
+      }
+    });
+
+    // Handle move down (J - vim style)
+    bookmarksList.key(['J'], () => {
+      const index = bookmarksList.selected;
+      if (index >= 0 && index < bookmarks.length - 1) {
+        const [bookmark] = bookmarks.splice(index, 1);
+        bookmarks.splice(index + 1, 0, bookmark);
+        if (onUpdate) {
+          onUpdate(bookmarks);
+        }
+        refreshList();
+        bookmarksList.select(index + 1);
+        this.screen.render();
+      }
+    });
+
+    // Now focus the list after all handlers are set up
+    bookmarksList.focus();
     this.screen.render();
   }
   
@@ -340,7 +618,7 @@ class BibleUI {
    * Display a temporary theme picker menu and apply selection
    */
   showThemePicker() {
-    const themes = ['default', 'dark', 'light', 'sepia', 'black-metal-gorgoroth'];
+    const themes = ['black-metal', 'nord', 'gruvbox', 'dracula', 'solarized'];
     const picker = blessed.list({
       parent: this.screen,
       label: ' Select Theme ',
@@ -352,9 +630,9 @@ class BibleUI {
       vi: true,
       mouse: true,
       items: themes.map(t => ` ${t}`),
-      border: { type: 'line', fg: this.theme.border },
+      border: { type: 'line', fg: this.theme.highlight },
       style: {
-        selected: { bg: this.theme.highlight, fg: this.theme.bg },
+        selected: { bg: this.theme.highlight },
         item: { fg: this.theme.fg },
         label: { fg: this.theme.highlight, bold: true }
       }
@@ -366,10 +644,22 @@ class BibleUI {
       config.set('theme', chosen);
       this.applyTheme();
       picker.destroy();
+      // Restore focus to active panel or default to content box
+      if (this.activePanel) {
+        this.activePanel.focus();
+      } else {
+        this.contentBox.focus();
+      }
       this.screen.render();
     });
     picker.key(['escape', 'q'], () => {
       picker.destroy();
+      // Restore focus to active panel or default to content box
+      if (this.activePanel) {
+        this.activePanel.focus();
+      } else {
+        this.contentBox.focus();
+      }
       this.screen.render();
     });
   }
@@ -393,13 +683,15 @@ class BibleUI {
       panel.setLabel(isActive ? ` [*] ${name} ` : ` [ ] ${name} `);
     });
     // Update scripture box border
-    this.contentBox.style.border.fg = this.theme.border;
+    const contentBoxActive = this.contentBox === this.activePanel;
+    this.contentBox.style.border.fg = contentBoxActive ? this.theme.highlight : this.theme.border;
+    this.contentBox.setLabel(contentBoxActive ? ' [*] Scripture ' : ' [ ] Scripture ');
     // Update status bar colors
-    this.statusBar.style.bg = this.theme.border;
-    this.statusBar.style.fg = this.theme.bg;
+    this.statusBar.style.fg = this.theme.fg;
+    this.statusBar.style.bg = this.theme.statusBg;
+    this.statusBar.style.bold = true;
     // Update help box
-    this.helpBox.style.border.fg = this.theme.border;
-    this.helpBox.style.bg = this.theme.bg;
+    this.helpBox.style.border.fg = this.theme.highlight;
     this.helpBox.style.fg = this.theme.fg;
     // Redraw last content to apply new text colors
     this.redrawContent();
@@ -416,10 +708,10 @@ class BibleUI {
         this.displayScripture(d.book, d.chapter, d.verses);
         break;
       case 'search':
-        this.showSearchResults(d.results);
+        // Don't redraw search on theme change - they're in a modal
         break;
       case 'bookmarks':
-        this.showBookmarks(d.bookmarks);
+        // Don't redraw bookmarks on theme change - they're in a modal
         break;
     }
   }

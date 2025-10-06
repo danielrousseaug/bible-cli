@@ -1,5 +1,4 @@
 const blessed = require('blessed');
-const contrib = require('blessed-contrib');
 const chalk = require('chalk');
 const { getTheme, config } = require('./config');
 
@@ -24,37 +23,30 @@ class BibleUI {
   }
   
   initLayout() {
-    // Create a grid layout
-    this.grid = new contrib.grid({
-      rows: 12,
-      cols: 12,
-      screen: this.screen
-    });
-    
     // Define active/inactive box styles
     const activeBoxStyle = {
-      border: { 
+      border: {
         type: 'line',
-        fg: this.theme.highlight 
+        fg: this.theme.highlight
       },
       style: {
         selected: {
           bg: this.theme.highlight,
           fg: this.theme.bg
         },
-        border: { 
+        border: {
           fg: this.theme.highlight,
           bold: true
         },
-        label: { 
+        label: {
           fg: this.theme.highlight,
           bold: true
         }
       }
     };
-    
+
     const inactiveBoxStyle = {
-      border: { 
+      border: {
         type: 'line',
         fg: this.theme.border
       },
@@ -63,36 +55,51 @@ class BibleUI {
           bg: this.theme.highlight,
           fg: this.theme.bg
         },
-        border: { 
-          fg: this.theme.border 
+        border: {
+          fg: this.theme.border
         },
-        label: { 
-          fg: this.theme.book 
+        label: {
+          fg: this.theme.book
         }
       }
     };
-    
-    // Books list
-    this.booksList = this.grid.set(0, 0, 12, 3, blessed.list, {
+
+    // Books list (left column, full height)
+    this.booksList = blessed.list({
+      parent: this.screen,
       label: ' [*] Books ',
+      top: 0,
+      left: 0,
+      width: '25%',
+      height: '100%-1',
       keys: true,
       vi: true,
       mouse: true,
       ...activeBoxStyle
     });
-    
-    // Chapters list
-    this.chaptersList = this.grid.set(0, 3, 6, 2, blessed.list, {
+
+    // Chapters list (middle column, top half)
+    this.chaptersList = blessed.list({
+      parent: this.screen,
       label: ' [ ] Chapters ',
+      top: 0,
+      left: '25%',
+      width: '17%',
+      height: '50%',
       keys: true,
       vi: true,
       mouse: true,
       ...inactiveBoxStyle
     });
-    
-    // Verses list
-    this.versesList = this.grid.set(6, 3, 6, 2, blessed.list, {
+
+    // Verses list (middle column, bottom half)
+    this.versesList = blessed.list({
+      parent: this.screen,
       label: ' [ ] Verses ',
+      top: '50%',
+      left: '25%',
+      width: '17%',
+      height: '50%-1',
       keys: true,
       vi: true,
       mouse: true,
@@ -151,9 +158,14 @@ class BibleUI {
     this.chaptersList.key('S-tab', () => this.booksList.focus());
     this.versesList.key('S-tab', () => this.chaptersList.focus());
     
-    // Content box (enable tags for style markup)
-    this.contentBox = this.grid.set(0, 5, 12, 7, blessed.box, {
+    // Content box (enable tags for style markup) - right column
+    this.contentBox = blessed.box({
+      parent: this.screen,
       label: ' [ ] Scripture ',
+      top: 0,
+      left: '42%',
+      width: '58%',
+      height: '100%-1',
       tags: true,
       scrollable: true,
       alwaysScroll: true,

@@ -20,7 +20,6 @@
   "license": "MIT",
   "dependencies": {
     "blessed": "^0.1.81",
-    "blessed-contrib": "^4.11.0",
     "chalk": "^4.1.2",
     "commander": "^11.0.0",
     "conf": "^10.2.0"

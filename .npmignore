@@ -1,0 +1,28 @@
+# Git
+.git/
+.gitignore
+
+# Development files
+.npmrc
+clean-install.sh
+config.json
+src/data/sample-verse.json
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test files
+__tests__/
+*.test.js
+coverage/
+
+# Temp
+temp/

@@ -1,11 +1,17 @@
 {
-  "name": "biblecli",
+  "name": "bibletui",
   "version": "0.1.0",
-  "description": "A riced-out CLI tool for reading the Bible",
+  "description": "A riced-out CLI tool for reading the Bible with interactive TUI, themes, search, and bookmarks",
   "main": "cli/index.js",
   "bin": {
     "bible": "cli/index.js"
   },
+  "files": [
+    "cli/",
+    "utils/",
+    "src/data/bible-kjv.json",
+    "README.md"
+  ],
   "scripts": {
     "start": "node cli/index.js",
     "test": "jest"
@@ -14,10 +20,26 @@
     "bible",
     "cli",
     "terminal",
-    "scripture"
+    "scripture",
+    "tui",
+    "kjv",
+    "blessed",
+    "christian",
+    "reading"
   ],
-  "author": "",
+  "author": "drousseau",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drousseau/bible-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/drousseau/bible-cli/issues"
+  },
+  "homepage": "https://github.com/drousseau/bible-cli#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "dependencies": {
     "blessed": "^0.1.81",
     "chalk": "^4.1.2",

@@ -455,7 +455,7 @@ class BibleUI {
       }
     });
 
-    // Create a list for bookmarks
+    // Create a list for bookmarks (vi: false to prevent double j/k handling)
     const bookmarksList = blessed.list({
       parent: container,
       label: ' Bookmarks ',
@@ -464,7 +464,7 @@ class BibleUI {
       width: '100%-2',
       height: '100%-3',
       keys: true,
-      vi: true,
+      vi: false,
       mouse: true,
       style: {
         selected: { bg: this.theme.highlight, bold: true },
@@ -486,15 +486,15 @@ class BibleUI {
       left: 0,
       width: '100%-2',
       height: 1,
-      content: '{center}Enter:Navigate | d:Delete | e:Edit Note | K/J:Move Up/Down | Esc/q:Close{/center}',
+      content: '{center}Enter:Navigate | j/k:Move | Shift+J/K:Reorder | d:Delete | e:Edit | Esc:Close{/center}',
       tags: true,
       style: {
         fg: this.theme.verse
       }
     });
 
-    // Helper function to refresh the list
-    const refreshList = () => {
+    // Helper function to refresh the list (optionally select a specific index)
+    const refreshList = (selectIndex) => {
       const items = bookmarks.map((bookmark, index) => {
         let item = `${index + 1}. ${bookmark.book} ${bookmark.chapter}:${bookmark.verse}`;
         if (bookmark.note) {
@@ -502,10 +502,12 @@ class BibleUI {
         }
         return item;
       });
-      const currentIndex = bookmarksList.selected;
+      const targetIndex = selectIndex !== undefined ? selectIndex : bookmarksList.selected;
       bookmarksList.setItems(items);
-      if (currentIndex < items.length) {
-        bookmarksList.select(currentIndex);
+      if (targetIndex >= 0 && targetIndex < items.length) {
+        bookmarksList.select(targetIndex);
+      } else if (items.length > 0) {
+        bookmarksList.select(0);
       }
       this.screen.render();
     };
@@ -591,33 +593,50 @@ class BibleUI {
       }
     });
 
-    // Handle move up (K - vim style)
-    bookmarksList.key(['K'], () => {
+    // Handle navigation (j/k - vim style)
+    bookmarksList.key(['j'], () => {
+      const index = bookmarksList.selected;
+      if (index < bookmarks.length - 1) {
+        bookmarksList.select(index + 1);
+        this.screen.render();
+      }
+    });
+
+    bookmarksList.key(['k'], () => {
       const index = bookmarksList.selected;
       if (index > 0) {
-        const [bookmark] = bookmarks.splice(index, 1);
-        bookmarks.splice(index - 1, 0, bookmark);
-        if (onUpdate) {
-          onUpdate(bookmarks);
-        }
-        refreshList();
         bookmarksList.select(index - 1);
         this.screen.render();
       }
     });
 
-    // Handle move down (J - vim style)
-    bookmarksList.key(['J'], () => {
+    // Handle reorder up (Shift+K)
+    bookmarksList.key(['S-k'], () => {
       const index = bookmarksList.selected;
-      if (index >= 0 && index < bookmarks.length - 1) {
-        const [bookmark] = bookmarks.splice(index, 1);
-        bookmarks.splice(index + 1, 0, bookmark);
+      if (index > 0) {
+        // Swap with item above
+        const temp = bookmarks[index];
+        bookmarks[index] = bookmarks[index - 1];
+        bookmarks[index - 1] = temp;
         if (onUpdate) {
           onUpdate(bookmarks);
         }
-        refreshList();
-        bookmarksList.select(index + 1);
-        this.screen.render();
+        refreshList(index - 1);
+      }
+    });
+
+    // Handle reorder down (Shift+J)
+    bookmarksList.key(['S-j'], () => {
+      const index = bookmarksList.selected;
+      if (index >= 0 && index < bookmarks.length - 1) {
+        // Swap with item below
+        const temp = bookmarks[index];
+        bookmarks[index] = bookmarks[index + 1];
+        bookmarks[index + 1] = temp;
+        if (onUpdate) {
+          onUpdate(bookmarks);
+        }
+        refreshList(index + 1);
       }
     });
 

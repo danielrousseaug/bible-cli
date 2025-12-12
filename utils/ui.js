@@ -8,12 +8,15 @@ class BibleUI {
       smartCSR: true,
       title: 'BibleCLI'
     });
-    
+
     this.theme = getTheme();
     // track last displayed content for redraw (e.g., on theme change)
     this.lastDisplay = null;
     // track which panel is active (books, chapters, verses)
     this.activePanel = null;
+    // navigation callbacks
+    this.onNextVerse = null;
+    this.onPrevVerse = null;
     this.initLayout();
     
     // Handle exit - only Ctrl+C quits the app
@@ -228,7 +231,7 @@ class BibleUI {
       left: 0,
       right: 0,
       height: 1,
-      content: '{center}TAB:Switch | r:Random | a:Add Bookmark | b:Bookmarks | s:Search | h:Help | Ctrl+C:Quit{/center}',
+      content: '{center}TAB:Switch | n/p:Next/Prev | r:Random | a:Bookmark | b:Bookmarks | s:Search | h:Help{/center}',
       tags: true,
       style: {
         fg: this.theme.fg,
@@ -256,16 +259,38 @@ class BibleUI {
     
     // Help key binding
     this.screen.key('h', () => {
-      this.helpBox.hidden = !this.helpBox.hidden;
-      if (!this.helpBox.hidden) {
+      if (this.helpBox.hidden) {
+        this.helpBox.show();
+        this.helpBox.setFront();
         this.helpBox.focus();
+      } else {
+        this.helpBox.hide();
+        if (this.activePanel) {
+          this.activePanel.focus();
+        } else {
+          this.booksList.focus();
+        }
       }
       this.screen.render();
     });
 
+    // Navigation: next verse with ] or n
+    this.screen.key([']', 'n'], () => {
+      if (this.onNextVerse) {
+        this.onNextVerse();
+      }
+    });
+
+    // Navigation: previous verse with [ or p
+    this.screen.key(['[', 'p'], () => {
+      if (this.onPrevVerse) {
+        this.onPrevVerse();
+      }
+    });
+
     // Help box close handlers
     this.helpBox.key(['escape', 'q', 'h'], () => {
-      this.helpBox.hidden = true;
+      this.helpBox.hide();
       // Restore focus to active panel or default to books list
       if (this.activePanel) {
         this.activePanel.focus();
@@ -285,6 +310,8 @@ class BibleUI {
       - Tab: Switch between panels
       - Shift+Tab: Switch panels (reverse)
       - Enter: Select item
+      - n or ]: Next verse
+      - p or [: Previous verse
 
       {bold}Actions{/bold}
       - r: Random verse
@@ -300,6 +327,11 @@ class BibleUI {
     `;
   }
   
+  setNavigation(onNext, onPrev) {
+    this.onNextVerse = onNext;
+    this.onPrevVerse = onPrev;
+  }
+
   setBooks(books) {
     this.booksList.setItems(books.map(b => ` ${b.abbrev} - ${b.name}`));
     this.screen.render();

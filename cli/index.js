@@ -134,6 +134,90 @@ function startInteractiveBible() {
     chapter: null,
     verse: null
   };
+
+  // Helper function to navigate to a specific verse and update UI
+  function navigateToVerse(target) {
+    if (!target) return;
+
+    const bookData = bible.getBook(target.book);
+    const book = books.find(b => b.name === target.book);
+    const chapter = bookData.chapters.find(c => c.chapter === target.chapter);
+
+    // Update book selection
+    const bookIndex = books.findIndex(b => b.name === target.book);
+    if (bookIndex !== -1) {
+      ui.booksList.select(bookIndex);
+
+      // Update chapters list
+      const chapters = bookData.chapters.map(c => c.chapter);
+      ui.setChapters(chapters);
+
+      // Update chapter selection
+      const chapterIndex = bookData.chapters.findIndex(c => c.chapter === target.chapter);
+      if (chapterIndex !== -1) {
+        ui.chaptersList.select(chapterIndex);
+
+        // Update verses list
+        const verseNumbers = chapter.verses.map(v => v.verse);
+        verseNumbers.unshift('Whole chapter');
+        ui.setVerses(verseNumbers);
+
+        // Update verse selection
+        const verseIndex = chapter.verses.findIndex(v => v.verse === target.verse);
+        if (verseIndex !== -1) {
+          ui.versesList.select(verseIndex + 1);
+        }
+      }
+
+      // Setup handlers
+      setupChapterHandler(bookData, book);
+      setupVerseHandler(book, chapter);
+    }
+
+    // Display the verse
+    ui.contentBox.setContent(`{bold}${target.book} ${target.chapter}:${target.verse}{/bold}\n\n${target.text}`);
+    ui.contentBox.setScrollPerc(0);
+    ui.setStatus(`${target.book} ${target.chapter}:${target.verse}`);
+
+    // Update current selection
+    currentSelection = {
+      book: target.book,
+      chapter: target.chapter,
+      verse: target.verse
+    };
+
+    ui.render();
+  }
+
+  // Set up next/prev navigation
+  ui.setNavigation(
+    // Next verse
+    () => {
+      if (currentSelection.book && currentSelection.chapter && currentSelection.verse) {
+        const next = bible.getNextVerse(currentSelection.book, currentSelection.chapter, currentSelection.verse);
+        if (next) {
+          navigateToVerse(next);
+        } else {
+          ui.setStatus('End of Bible');
+        }
+      } else {
+        ui.setStatus('Select a verse first');
+      }
+    },
+    // Previous verse
+    () => {
+      if (currentSelection.book && currentSelection.chapter && currentSelection.verse) {
+        const prev = bible.getPrevVerse(currentSelection.book, currentSelection.chapter, currentSelection.verse);
+        if (prev) {
+          navigateToVerse(prev);
+        } else {
+          ui.setStatus('Beginning of Bible');
+        }
+      } else {
+        ui.setStatus('Select a verse first');
+      }
+    }
+  );
   
   // Define event handlers outside to avoid multiple registrations
   // Chapter selection handler: show chapter & prepare verse options (including whole chapter)

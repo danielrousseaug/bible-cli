@@ -270,6 +270,78 @@ class BibleReader {
   }
 
   /**
+   * Get the next chapter, wrapping to the next book if needed
+   * Returns { book, chapter, verses } or null if at the end
+   */
+  getNextChapter(bookName, chapterNum) {
+    const book = this.getBook(bookName);
+    if (!book) return null;
+
+    const bookIndex = this.data.books.findIndex(b => b.name === book.name);
+    const chapterIndex = book.chapters.findIndex(c => c.chapter === parseInt(chapterNum));
+    if (chapterIndex === -1) return null;
+
+    // Try next chapter in same book
+    if (chapterIndex < book.chapters.length - 1) {
+      const nextChapter = book.chapters[chapterIndex + 1];
+      return {
+        book: book.name,
+        chapter: nextChapter.chapter,
+        verses: nextChapter.verses
+      };
+    }
+
+    // Try first chapter of next book
+    if (bookIndex < this.data.books.length - 1) {
+      const nextBook = this.data.books[bookIndex + 1];
+      const firstChapter = nextBook.chapters[0];
+      return {
+        book: nextBook.name,
+        chapter: firstChapter.chapter,
+        verses: firstChapter.verses
+      };
+    }
+
+    return null; // At the very end
+  }
+
+  /**
+   * Get the previous chapter, wrapping to the previous book if needed
+   * Returns { book, chapter, verses } or null if at the beginning
+   */
+  getPrevChapter(bookName, chapterNum) {
+    const book = this.getBook(bookName);
+    if (!book) return null;
+
+    const bookIndex = this.data.books.findIndex(b => b.name === book.name);
+    const chapterIndex = book.chapters.findIndex(c => c.chapter === parseInt(chapterNum));
+    if (chapterIndex === -1) return null;
+
+    // Try previous chapter in same book
+    if (chapterIndex > 0) {
+      const prevChapter = book.chapters[chapterIndex - 1];
+      return {
+        book: book.name,
+        chapter: prevChapter.chapter,
+        verses: prevChapter.verses
+      };
+    }
+
+    // Try last chapter of previous book
+    if (bookIndex > 0) {
+      const prevBook = this.data.books[bookIndex - 1];
+      const lastChapter = prevBook.chapters[prevBook.chapters.length - 1];
+      return {
+        book: prevBook.name,
+        chapter: lastChapter.chapter,
+        verses: lastChapter.verses
+      };
+    }
+
+    return null; // At the very beginning
+  }
+
+  /**
    * Normalize raw Bible JSON into proper chapters and verses structure
    */
   normalizeData(raw) {

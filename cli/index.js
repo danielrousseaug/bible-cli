@@ -189,6 +189,77 @@ function startInteractiveBible() {
     ui.render();
   }
 
+  // Helper function to navigate to a chapter and display it fully
+  function navigateToChapter(target) {
+    if (!target) return;
+
+    const bookData = bible.getBook(target.book);
+    const book = books.find(b => b.name === target.book);
+    const chapter = bookData.chapters.find(c => c.chapter === target.chapter);
+
+    const bookIndex = books.findIndex(b => b.name === target.book);
+    if (bookIndex !== -1) {
+      ui.booksList.select(bookIndex);
+
+      const chapters = bookData.chapters.map(c => c.chapter);
+      ui.setChapters(chapters);
+
+      const chapterIndex = bookData.chapters.findIndex(c => c.chapter === target.chapter);
+      if (chapterIndex !== -1) {
+        ui.chaptersList.select(chapterIndex);
+
+        const verseNumbers = chapter.verses.map(v => v.verse);
+        verseNumbers.unshift('Whole chapter');
+        ui.setVerses(verseNumbers);
+        ui.versesList.select(0); // Select "Whole chapter"
+      }
+
+      setupChapterHandler(bookData, book);
+      setupVerseHandler(book, chapter);
+    }
+
+    ui.displayScripture(book, chapter, chapter.verses);
+    ui.setStatus(`Reading: ${target.book} ${target.chapter}`);
+
+    currentSelection = {
+      book: target.book,
+      chapter: target.chapter,
+      verse: chapter.verses[0].verse
+    };
+
+    ui.render();
+  }
+
+  // Set up next/prev chapter navigation
+  ui.setChapterNavigation(
+    // Next chapter
+    () => {
+      if (currentSelection.book && currentSelection.chapter) {
+        const next = bible.getNextChapter(currentSelection.book, currentSelection.chapter);
+        if (next) {
+          navigateToChapter(next);
+        } else {
+          ui.setStatus('End of Bible');
+        }
+      } else {
+        ui.setStatus('Select a chapter first');
+      }
+    },
+    // Previous chapter
+    () => {
+      if (currentSelection.book && currentSelection.chapter) {
+        const prev = bible.getPrevChapter(currentSelection.book, currentSelection.chapter);
+        if (prev) {
+          navigateToChapter(prev);
+        } else {
+          ui.setStatus('Beginning of Bible');
+        }
+      } else {
+        ui.setStatus('Select a chapter first');
+      }
+    }
+  );
+
   // Set up next/prev navigation
   ui.setNavigation(
     // Next verse

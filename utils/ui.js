@@ -17,6 +17,8 @@ class BibleUI {
     // navigation callbacks
     this.onNextVerse = null;
     this.onPrevVerse = null;
+    this.onNextChapter = null;
+    this.onPrevChapter = null;
     this.initLayout();
     
     // Handle exit - only Ctrl+C quits the app
@@ -231,7 +233,7 @@ class BibleUI {
       left: 0,
       right: 0,
       height: 1,
-      content: '{center}TAB:Switch | n/p:Next/Prev | r:Random | a:Bookmark | b:Bookmarks | s:Search | h:Help{/center}',
+      content: '{center}TAB:Switch | n/p:Verse | N/P:Chapter | r:Random | a:Bookmark | b:Bookmarks | s:Search | h:Help{/center}',
       tags: true,
       style: {
         fg: this.theme.fg,
@@ -288,6 +290,20 @@ class BibleUI {
       }
     });
 
+    // Navigation: next chapter with } or N (Shift+n)
+    this.screen.key(['}', 'S-n'], () => {
+      if (this.onNextChapter) {
+        this.onNextChapter();
+      }
+    });
+
+    // Navigation: previous chapter with { or P (Shift+p)
+    this.screen.key(['{', 'S-p'], () => {
+      if (this.onPrevChapter) {
+        this.onPrevChapter();
+      }
+    });
+
     // Help box close handlers
     this.helpBox.key(['escape', 'q', 'h'], () => {
       this.helpBox.hide();
@@ -312,6 +328,8 @@ class BibleUI {
       - Enter: Select item
       - n or ]: Next verse
       - p or [: Previous verse
+      - N or }: Next chapter
+      - P or {: Previous chapter
 
       {bold}Actions{/bold}
       - r: Random verse
@@ -330,6 +348,11 @@ class BibleUI {
   setNavigation(onNext, onPrev) {
     this.onNextVerse = onNext;
     this.onPrevVerse = onPrev;
+  }
+
+  setChapterNavigation(onNext, onPrev) {
+    this.onNextChapter = onNext;
+    this.onPrevChapter = onPrev;
   }
 
   setBooks(books) {
